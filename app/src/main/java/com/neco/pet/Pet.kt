@@ -12,7 +12,9 @@ enum class Mood(val sprite: Int, val text: String) {
 }
 
 /** slot: treat, head, neck, face, bed */
-data class Item(val id: String, val name: String, val price: Int, val slot: String, val food: Int = 0, val joy: Int = 0)
+data class Item(val id: String, val name: String, val price: Int, val slot: String, val food: Int = 0, val joy: Int = 0, val coins: Int = 0)
+
+data class PlayResult(val coins: Int, val loved: Boolean)
 
 object Pet {
     val ITEMS = listOf(
@@ -26,7 +28,20 @@ object Pet {
         Item("face_shades", "Sunglasses", 40, "face"),
         Item("bed_pink", "Pink cushion", 0, "bed"),
         Item("bed_blue", "Blue basket", 40, "bed"),
-        Item("bed_star", "Star bed", 80, "bed")
+        Item("bed_star", "Star bed", 80, "bed"),
+        Item("bg_home", "Home", 0, "bg"),
+        Item("bg_backyard", "Backyard", 30, "bg"),
+        Item("bg_street", "Street", 30, "bg"),
+        Item("bg_park", "Park", 50, "bg"),
+        Item("bg_beach", "Beach", 60, "bg"),
+        Item("bg_snow", "Snow", 60, "bg"),
+        Item("bg_night", "Night sky (auto at bedtime)", 80, "bg"),
+        Item("toy_ball", "Tennis ball", 10, "toy", 0, 30, 6),
+        Item("toy_bone", "Squeaky bone", 20, "toy", 0, 35, 7),
+        Item("toy_frisbee", "Frisbee", 35, "toy", 0, 40, 9),
+        Item("toy_rope", "Rope tug", 45, "toy", 0, 45, 10),
+        Item("toy_duck", "Plush duck", 60, "toy", 0, 50, 12),
+        Item("toy_laser", "Laser dot", 80, "toy", 0, 55, 14)
     )
 
     private const val FOOD_HOURS = 14f
@@ -62,7 +77,21 @@ object Pet {
         bump(c, 35f, 5f); return true
     }
 
-    fun play(c: Context) { bump(c, -8f, 25f); addCoins(c, 5) }
+    fun favorite(c: Context): String {
+        val p = prefs(c)
+        return p.getString("fav", null)
+            ?: ITEMS.filter { it.slot == "toy" }.random().id.also { p.edit().putString("fav", it).apply() }
+    }
+
+    fun play(c: Context): PlayResult {
+        val toy = ITEMS.firstOrNull { it.id == equipped(c, "toy") }
+        val loved = toy != null && toy.id == favorite(c)
+        val joy = (toy?.joy ?: 25) + (if (loved) 10 else 0)
+        val coins = (toy?.coins ?: 5) + (if (loved) 3 else 0)
+        bump(c, -8f, joy.toFloat())
+        addCoins(c, coins)
+        return PlayResult(coins, loved)
+    }
 
     fun pet(c: Context) {
         bump(c, 0f, 10f)
@@ -99,12 +128,12 @@ object Pet {
     }
 
     fun owned(c: Context, id: String) =
-        id == "bed_pink" || (prefs(c).getStringSet("own", emptySet()) ?: emptySet()).contains(id)
+        id == "bed_pink" || id == "bg_home" || (prefs(c).getStringSet("own", emptySet()) ?: emptySet()).contains(id)
 
     fun count(c: Context, id: String) = prefs(c).getInt("n_$id", 0)
 
     fun equipped(c: Context, slot: String): String? =
-        prefs(c).getString("eq_$slot", if (slot == "bed") "bed_pink" else null)
+        prefs(c).getString("eq_$slot", when (slot) { "bed" -> "bed_pink"; "bg" -> "bg_home"; else -> null })
 
     fun buy(c: Context, item: Item): Boolean {
         if (coins(c) < item.price) return false
@@ -123,7 +152,7 @@ object Pet {
 
     fun equip(c: Context, item: Item) {
         val e = prefs(c).edit()
-        if (item.slot == "bed") e.putString("eq_bed", item.id)
+        if (item.slot == "bed" || item.slot == "bg") e.putString("eq_${item.slot}", item.id)
         else if (equipped(c, item.slot) == item.id) e.remove("eq_${item.slot}")
         else e.putString("eq_${item.slot}", item.id)
         e.apply()

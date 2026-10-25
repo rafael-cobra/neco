@@ -20,6 +20,11 @@ object Sprites {
     }
 
     /** All drawing happens on a 48x48 grid; callers scale the canvas. */
+    fun currentBg(c: Context, night: Boolean): String =
+        if (night && Pet.owned(c, "bg_night")) "bg_night" else (Pet.equipped(c, "bg") ?: "bg_home")
+
+    fun drawBg(cv: Canvas, c: Context, night: Boolean) = item(cv, c, currentBg(c, night))
+
     fun drawBed(cv: Canvas, c: Context) = item(cv, c, Pet.equipped(c, "bed"))
 
     fun drawDog(cv: Canvas, c: Context, sprite: Int) {
@@ -30,7 +35,7 @@ object Sprites {
     fun notif(c: Context, sprite: Int): Bitmap {
         val b = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888)
         val cv = Canvas(b)
-        drawBed(cv, c); drawDog(cv, c, sprite)
+        drawBg(cv, c, sprite == R.drawable.neco_sleeping); drawBed(cv, c); drawDog(cv, c, sprite)
         return Bitmap.createScaledBitmap(b, 192, 192, false)
     }
 }

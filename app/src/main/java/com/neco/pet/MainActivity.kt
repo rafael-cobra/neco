@@ -52,7 +52,12 @@ class MainActivity : Activity() {
         foodBar = statRow("Food"); joyBar = statRow("Joy")
         root.addView(buttons(
             "Feed" to { if (Pet.feed(this)) pv.eat(null) else toast("Neco is full!"); refresh() },
-            "Play" to { Pet.play(this); pv.play(); toast("+5 coins"); refresh() },
+            "Play" to {
+                val r = Pet.play(this)
+                pv.play(Pet.equipped(this, "toy"))
+                toast("+${r.coins} coins" + (if (r.loved) " - Neco LOVES this toy!" else ""))
+                refresh()
+            },
             "Pet" to { Pet.pet(this); pv.petted(); refresh() }
         ))
         root.addView(buttons(
@@ -103,11 +108,16 @@ class MainActivity : Activity() {
             }.setNegativeButton("Close", null).show()
     }
 
+    private fun cat(slot: String) = when (slot) {
+        "treat" -> "Treat"; "head" -> "Hat"; "neck" -> "Neck"; "face" -> "Face"
+        "bed" -> "Bed"; "bg" -> "Scene"; else -> "Toy"
+    }
+
     private fun showShop() {
         val list = Pet.ITEMS.filter { it.slot == "treat" || !Pet.owned(this, it.id) }
         val labels = list.map {
             val fx = if (it.slot == "treat") "  (food +${it.food}, joy +${it.joy})" else ""
-            "${it.name} - ${it.price} coins$fx"
+            "${cat(it.slot)}: ${it.name} - ${it.price} coins$fx"
         }
         AlertDialog.Builder(this).setTitle("Shop - ${Pet.coins(this)} coins")
             .setItems(labels.toTypedArray()) { _, i ->
@@ -119,8 +129,8 @@ class MainActivity : Activity() {
 
     private fun showCloset() {
         val list = Pet.ITEMS.filter { it.slot != "treat" && Pet.owned(this, it.id) }
-        val labels = list.map { (if (Pet.equipped(this, it.slot) == it.id) "[worn] " else "") + it.name }
-        AlertDialog.Builder(this).setTitle("Closet (tap to wear / remove)")
+        val labels = list.map { (if (Pet.equipped(this, it.slot) == it.id) "[on] " else "") + "${cat(it.slot)}: ${it.name}" }
+        AlertDialog.Builder(this).setTitle("Closet (tap to use / remove)")
             .setItems(labels.toTypedArray()) { _, i ->
                 Pet.equip(this, list[i]); refresh(); showCloset()
             }.setNegativeButton("Close", null).show()
